@@ -1,4 +1,4 @@
 async-memcache
 ==============
 
-async memcache on python and tornado
+async memcache client on python and tornado
