@@ -16,39 +16,94 @@ def cmemcache_hash(key):
     
     return((((crc32(key) & 0xffffffff) >> 16) & 0x7fff) or 1)
 
+server_hash_function = cmemcache_hash
+
 class TimeoutError(Exception):
     pass
 
 class ConnectionTimeoutError(TimeoutError):
     pass
 
+class ReadTimeoutError(TimeoutError):
+    pass
+
+class WriteTimeoutError(TimeoutError):
+    pass
+
 class Client:
     'client'
     
-    def __init__(self, hosts, logger=logging, io_loop=None, connection_timeout=1):
+    def __init__(self, hosts, logger=logging, io_loop=None, connection_timeout=1, read_timeout=2, write_timeout=1):
         
         self.hosts = hosts
         self.dead_hosts = hosts
         self.io_loop = io_loop or tornado.ioloop.IOLoop.instance()
-        self.connection_map = {}
         self.logger = logger
         self.connection_timeout = connection_timeout
     
+    @tornado.gen.coroutine
     def get(self, key):
+        'Execute GET CMD'
         
-        pass
-    
+        host = self.get_host(key)
+        cmd = '%s %s' %('get', key)
+        stream = yield self.execute_cmd(cmd, host)
+        head = yield self.read_one_line(stream)
+        if head == 'END':
+            raise tornado.gen.Return(None)
+        length = int(head.split(' ')[-1])
+        response = yield self.read_bytes(stream, length)
+        raise tornado.gen.Return(response)
+
+    @tornado.gen.coroutine
     def set(self, key, value, expire):
+        'Execute SET CMD'
         
-        pass
+        host = self.get_host(key)
+        cmd = "%s %s %d %d %d\r\n%s" %('set', key, 0, expire, len(value), value) 
+        stream = yield self.execute_cmd(cmd, host)
+        response = yield self.read_one_line(stream)
+        raise tornado.gen.Return(response == 'STORED')
     
-    def send_cmd(self, cmd, host):
+    def get_host(self, key):
+        'get host for a key'
+
+        key_hash = server_hash_function(key)
+        return self.hosts[key_hash % len(self.hosts)]
+
+    @tornado.gen.coroutine
+    def execute_cmd(self, cmd, host):
+        'execute cmd and return stream'
         
-        pass
+        stream = yield self.connect(host)
+        yield self.write_to_stream(stream, cmd) 
+        raise tornado.gen.Return(stream)
+ 
+    @tornado.gen.coroutine
+    def write_to_stream(self, stream, cmd):
+        'write cmd to stream'
+        
+        _timeout_handle = self.add_timeout(self.connection_timeout, error=WriteTimeoutError)
+        yield tornado.gen.Task(stream.write, '%s\r\n' %cmd)
+        self.remove_timeout(_timeout_handle)
+
+    @tornado.gen.coroutine
+    def read_one_line(self, stream):
+        'read one line from stream'
+
+        _timeout_handle = self.add_timeout(self.connection_timeout, error=ReadTimeoutError)
+        response = yield tornado.gen.Task(stream.read_until, '\r\n')
+        self.remove_timeout(_timeout_handle)
+        raise tornado.gen.Return(response.strip('\r\n'))
     
-    def parse_response(self, response):
-        
-        pass
+    @tornado.gen.coroutine
+    def read_bytes(self, stream, length):
+        'read bytes for length'
+
+        _timeout_handle = self.add_timeout(self.connection_timeout, error=ReadTimeoutError)
+        response = yield tornado.gen.Task(stream.read_bytes, length)
+        self.remove_timeout(_timeout_handle)
+        raise tornado.gen.Return(response)
 
     @tornado.gen.coroutine
     def connect(self, host):
@@ -60,14 +115,7 @@ class Client:
         _host, _port = host.split(':', 1)
         yield tornado.gen.Task(stream.connect, (_host, int(_port)))
         self.remove_timeout(_timeout_handle)
-        self.connection_map[host] = stream
-        raise tornado.gen.Return(1)
-    
-    def close(self):
-        'close all streams'
-        
-        for stream in self.connection_map.values():
-            stream.close()
+        raise tornado.gen.Return(stream)
     
     def _on_timeout(self, error=TimeoutError):
         'timeout callback'
