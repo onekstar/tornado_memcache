@@ -10,10 +10,11 @@ class ClientTestCase(BaseTestCase):
     def test_set(self):
         'test set cache'
 
-        key = uuid.uuid4().hex
         client = Client(['127.0.0.1:11211'])
-        res = yield client.set(key, 'value', 5)
-        self.assertEqual(res, True)
+        for value in ('abc', u'中国', 5, 5l): 
+            key = uuid.uuid4().hex
+            res = yield client.set(key, value, 5)
+            self.assertEqual(res, True)
 
     @gen_test
     def test_get_when_not_exist(self):
@@ -33,6 +34,48 @@ class ClientTestCase(BaseTestCase):
         yield client.set(key, 'value', 5)
         res = yield client.get(key)
         self.assertEqual(res, 'value')
+    
+    @gen_test
+    def test_incr_when_cache_not_exist(self):
+        'test incr when cache not exist'
+
+        key = uuid.uuid4().hex
+        client = Client(['127.0.0.1:11211'])
+        res = yield client.incr(key, delta=2)
+        self.assertEqual(res, None)
+
+    @gen_test
+    def test_incr(self):
+        'test incr'
+
+        key = uuid.uuid4().hex
+        value = 2
+        delta = 2
+        client = Client(['127.0.0.1:11211'])
+        yield client.set(key, value, 5)
+        res = yield client.incr(key, delta=delta)
+        self.assertEqual(res, value+delta)
+    
+    @gen_test
+    def test_decr_when_cache_not_exist(self):
+        'test incr when cache not exist'
+
+        key = uuid.uuid4().hex
+        client = Client(['127.0.0.1:11211'])
+        res = yield client.decr(key, delta=2)
+        self.assertEqual(res, None)
+
+    @gen_test
+    def test_decr(self):
+        'test decr'
+
+        key = uuid.uuid4().hex
+        value = 2
+        delta = 2
+        client = Client(['127.0.0.1:11211'])
+        yield client.set(key, value, 5)
+        res = yield client.decr(key, delta=delta)
+        self.assertEqual(res, value-delta)
 
 if __name__ == '__main__':
     import unittest
