@@ -13,6 +13,7 @@ You can just use the source code in tornado_memcache
 
 Usage
 -----
+Normally, you can find the usage in the test package.
 
 ```python
 import tornado.gen
