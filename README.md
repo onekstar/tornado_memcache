@@ -29,3 +29,7 @@ def get(self):
     value = yield client.get('k')
 ```
 
+Exception
+-----
+1. The functions may throw exception. For example, ConnectionTimeoutError, ReadTimeoutError.So please handle the exception when use it.
+
