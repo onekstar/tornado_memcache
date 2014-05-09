@@ -76,6 +76,14 @@ class ClientTestCase(BaseTestCase):
         yield client.set(key, value, 5)
         res = yield client.decr(key, delta=delta)
         self.assertEqual(res, value-delta)
+    
+    @gen_test
+    def test_flush_all(self):
+        'test flush_all'
+
+        client = Client(['127.0.0.1:11211'])
+        res = yield client.flush_all()
+        self.assertEqual(res, True)
 
 if __name__ == '__main__':
     import unittest

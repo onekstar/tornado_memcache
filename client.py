@@ -30,9 +30,9 @@ class Client:
     
     @tornado.gen.coroutine
     def get(self, key):
-        'Execute GET CMD'
+        'Execute get CMD'
         
-        connection = self.get_connection(key)
+        connection = self.get_connection(key=key)
         cmd = '%s %s' %('get', key)
         yield connection.send_cmd(cmd)
         head = yield connection.read_one_line()
@@ -44,10 +44,10 @@ class Client:
 
     @tornado.gen.coroutine
     def set(self, key, value, expire):
-        'Execute SET CMD'
+        'Execute set CMD'
         
         flags, value = self.get_store_info(value)
-        connection = self.get_connection(key)
+        connection = self.get_connection(key=key)
         cmd = "%s %s %d %d %d\r\n%s" %('set', key, flags, expire, len(value), value) 
         yield connection.send_cmd(cmd)
         response = yield connection.read_one_line()
@@ -71,23 +71,23 @@ class Client:
     
     @tornado.gen.coroutine
     def incr(self, key, delta=1):
-        'Execute INCR CMD'
+        'Execute incr CMD'
 
         result = yield self._incr_or_decr('incr', key, delta)
         raise tornado.gen.Return(result)
 
     @tornado.gen.coroutine
     def decr(self, key, delta=1):
-        'Execute INCR CMD'
+        'Execute incr CMD'
 
         result = yield self._incr_or_decr('decr', key, delta)
         raise tornado.gen.Return(result)
 
     @tornado.gen.coroutine
     def _incr_or_decr(self, cmd, key, delta):
-        'Execute INCR CMD'
+        'Execute incr CMD'
 
-        connection = self.get_connection(key)
+        connection = self.get_connection(key=key)
         cmd = '%s %s %d' %(cmd, key, delta) 
         yield connection.send_cmd(cmd)
         response = yield connection.read_one_line()
@@ -95,16 +95,19 @@ class Client:
             raise tornado.gen.Return(None)
         raise tornado.gen.Return(int(response))
     
+    def flush_all(self):
+        'Execute flush_all CMD'
+    
     def get_host(self, key):
         'get host for a key'
 
         key_hash = server_hash_function(key)
         return self.hosts[key_hash % len(self.hosts)]
     
-    def get_connection(self, key):
-        'get connection instance'
+    def get_connection(self, key=None, host=None):
+        'get connection instance by key or specific host'
         
-        host = self.get_host(key)
+        if host is None: 
+            host = self.get_host(key)
         return Connection(host, io_loop=self.io_loop, connection_timeout=self.connection_timeout, 
             read_timeout=self.read_timeout, write_timeout=self.write_timeout)  
-        
