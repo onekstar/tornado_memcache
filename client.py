@@ -82,6 +82,16 @@ class Client:
 
         result = yield self._incr_or_decr('decr', key, delta)
         raise tornado.gen.Return(result)
+    
+    @tornado.gen.coroutine
+    def delete(self, key):
+        'Execute delete CMD'
+
+        connection = self.get_connection(key=key)
+        cmd = 'delete %s' %(key) 
+        yield connection.send_cmd(cmd)
+        response = yield connection.read_one_line()
+        raise tornado.gen.Return(response in ('DELETED', 'NOT_FOUND'))
 
     @tornado.gen.coroutine
     def _incr_or_decr(self, cmd, key, delta):
@@ -94,9 +104,6 @@ class Client:
         if not response.isdigit():
             raise tornado.gen.Return(None)
         raise tornado.gen.Return(int(response))
-    
-    def flush_all(self):
-        'Execute flush_all CMD'
     
     def get_host(self, key):
         'get host for a key'
