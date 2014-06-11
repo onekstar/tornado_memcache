@@ -37,9 +37,11 @@ class Client:
         yield connection.send_cmd(cmd)
         head = yield connection.read_one_line()
         if head == 'END':
+            connection.close()
             raise tornado.gen.Return(None)
         length = int(head.split(' ')[-1])
         response = yield connection.read_bytes(length)
+        connection.close()
         raise tornado.gen.Return(response)
 
     @tornado.gen.coroutine
@@ -51,6 +53,7 @@ class Client:
         cmd = "%s %s %d %d %d\r\n%s" %('set', key, flags, expire, len(value), value) 
         yield connection.send_cmd(cmd)
         response = yield connection.read_one_line()
+        connection.close()
         raise tornado.gen.Return(response == 'STORED')
     
     def get_store_info(self, value):
@@ -91,6 +94,7 @@ class Client:
         cmd = 'delete %s' %(key) 
         yield connection.send_cmd(cmd)
         response = yield connection.read_one_line()
+        connection.close()
         raise tornado.gen.Return(response in ('DELETED', 'NOT_FOUND'))
 
     @tornado.gen.coroutine
@@ -102,7 +106,9 @@ class Client:
         yield connection.send_cmd(cmd)
         response = yield connection.read_one_line()
         if not response.isdigit():
+            connection.close()
             raise tornado.gen.Return(None)
+        connection.close()
         raise tornado.gen.Return(int(response))
     
     def get_host(self, key):

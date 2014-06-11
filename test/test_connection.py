@@ -1,5 +1,5 @@
 #coding:utf-8
-from connection import Connection, ConnectionTimeoutError, ReadTimeoutError, WriteTimeoutError
+from tornado_memcache.connection import Connection, ConnectionTimeoutError, ReadTimeoutError, WriteTimeoutError
 from base import BaseTestCase
 from tornado.testing import gen_test
 

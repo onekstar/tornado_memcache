@@ -2,7 +2,7 @@
 import uuid
 from base import BaseTestCase
 from tornado.testing import gen_test
-from client import Client
+from tornado_memcache.client import Client
 
 class ClientTestCase(BaseTestCase):
 

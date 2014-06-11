@@ -24,18 +24,20 @@ class Connection:
     def __init__(self, host, io_loop=None, connection_timeout=1, read_timeout=2, write_timeout=1):
         
         self.host = host
-        self.io_loop = io_loop or tornado.ioloop.IOLoop.instance()
+        self.io_loop = io_loop or tornado.ioloop.IOLoop.current()
         self.connection_timeout = connection_timeout
         self.read_timeout = read_timeout
         self.write_timeout = write_timeout
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
         self.stream = tornado.iostream.IOStream(self.sock)
+        self.tcp_timeout = None
 
     @tornado.gen.coroutine
     def connect(self):
         'connect to host'
 
         _timeout_handle = self.add_timeout(self.connection_timeout, error=ConnectionTimeoutError)
+        self.tcp_timeout = self.add_timeout(self.io_loop.time()+10, error=None) #use this time out to prevent unclosed tcp connection
         _host, _port = self.host.split(':', 1)
         yield tornado.gen.Task(self.stream.connect, (_host, int(_port)))
         self.remove_timeout(_timeout_handle)
@@ -77,7 +79,9 @@ class Connection:
     def _on_timeout(self, error=TimeoutError):
         'timeout callback'
         
-        raise error()
+        self.close()
+        if error is not None:
+            raise error()
 
     def add_timeout(self, seconds, error=TimeoutError):
         'add new timeout handle'
@@ -89,3 +93,8 @@ class Connection:
         
         if isinstance(timeout_handle, tornado.ioloop._Timeout):
             self.io_loop.remove_timeout(timeout_handle)
+    
+    def close(self):
+        
+        self.remove_timeout(self.tcp_timeout)
+        self.stream.close()
